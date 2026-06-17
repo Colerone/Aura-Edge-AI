@@ -2,8 +2,9 @@ import time
 
 import streamlit as st
 from rich import layout
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import numpy as np
+from streamlit import spinner
 
 st.set_page_config(
     page_title= "Aura Edge",
@@ -31,8 +32,8 @@ st.markdown(
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         ">
-            <h1 style='margin-top: 0px;'>Aura Edge</h1>
-            <p style='font-size: 1.5em; font-weight: bold; margin-top: -15px;'>AI-Powered Body Skin & Wound Detection System</p>
+            <h2 style='margin-top: 0px;'>Aura Edge</h2>
+            <p style='font-size: 1.5em;  margin-top: -20px;'>AI-Powered Body Skin & Wound Detection System</p>
         </div>
     """,
     unsafe_allow_html = True
@@ -53,7 +54,7 @@ def run_yolo_detection(img_array: np.ndarray):
 def run_unet_segmentation(img_array: np.ndarray):
     """ U-Net: Pixel-level calculation of wound area (Mock)"""
     time.sleep(0.6)
-    return{"affected_area_pixel" : 4250, "esitmated_surface_area_cm2" : 12.5}
+    return{"affected_area_px" : 4250, "estimated_surface_area_cm2" : 12.5}
 
 def run_efficient_classification(img_array:np.ndarray):
     """to see skin condition and severity"""
@@ -64,9 +65,79 @@ def run_efficient_classification(img_array:np.ndarray):
         "recommended_ingredients": ["Centella Asiatica", "Zinc Oxide", "Panthenol (Vitamin B5)"]
     }
 
+col1,col2 = st.columns([1,2])
+
+with col1:
+    st.markdown(
+        """
+            <div style="margin-top: 15px;">
+                <p  style='font-weight:bold;'>📸 Image Ingestion</p>
+            </div>
+        """,
+
+        unsafe_allow_html = True
+    )
+    upload_Img = st.file_uploader(
+        "Upload a skin & wound Image: ",
+        type=["png", "jpg", "jpeg"]
+    )
+    if upload_Img is not None:
+        image = Image.open(upload_Img)
+        st.image(image, caption="Image Preview", use_container_width=True)
+
+        with st.spinner('Processing image...'):
+            processed_data = preprocess_image(image)
 
 
 
 
+with col2:
+   st.markdown(
+       """
+        <div style="margin-top: 15px;">
+            <p style='font-weight: bold;'>🔬💡 Real Time AI</p>
+        </div>
+       """,
+       unsafe_allow_html = True
+   )
+   if upload_Img is not None:
+        with st.spinner("Running AI Multi-Model"):
+            # Model များကို ခေါ်ယူခြင်း
+            yolo_res = run_yolo_detection(processed_data)
+            unet_res = run_unet_segmentation(processed_data)
+            eff_res = run_efficient_classification(processed_data)
+
+        st.success("Detection Complete Successfully🚀")
+
+        st.markdown("### 🎯 1. Target Localization (YOLOv11)")
+        st.metric(label="Detected Condition", value=yolo_res["label"])
+        st.write(f"**Confidence Score:** {yolo_res['confidence'] * 100:.2f}%")
+
+        st.markdown("### 📐 2. Boundary & Area Extraction (U-Net)")
+        st.metric(label="Estimated Wound Surface Area", value=f"{unet_res['estimated_surface_area_cm2']} cm²")
+        st.caption(f"Calculated from {unet_res['affected_area_px']} pixels at current resolution.")
+
+        st.write("---")
+
+        # --- FEATURE 3: CLASSIFICATION & RECOMMENDATION ---
+        st.markdown("### 🧪 3. Profile Categorization (EfficientNet)")
+
+        # Severity level အလိုက် အရောင်ပြောင်းခြင်း
+        severity = eff_res["severity"]
+        if severity == "Moderate":
+            st.warning(f"Severity Level: {severity}")
+        elif severity == "High":
+            st.error(f"Severity Level: {severity}")
+        else:
+            st.success(f"Severity Level: {severity}")
+
+        st.write(f"**Pathological Profile:** {eff_res['condition']}")
+
+        st.markdown("**🔬 Ingredient-Focused Recommendations:**")
+        for ingredient in eff_res["recommended_ingredients"]:
+            st.markdown(f"- `{ingredient}`")
+
+   else:
+       st.info("Please upload an image from the left panel to trigger the AI analysis pipeline.")
 
 
