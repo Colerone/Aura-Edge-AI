@@ -51,6 +51,34 @@ def run_yolo_detection(img_array: np.ndarray):
     return{"box" : [50,50,150,150], "confidence" : 0.92, "label" : "Surgical Wound"}
 
 
+def draw_detections(original_image: Image.Image, yolo_res: dict):
+    """ ပုံပေါ်တွင် Bounding Box နှင့် Label ဆွဲပေးမည့် function """
+    draw_img = original_image.copy()
+    draw = ImageDraw.Draw(draw_img)
+
+    # မူရင်းပုံ၏ Size ကိုယူခြင်း
+    orig_w, orig_h = original_image.size
+
+    # YOLO က 224x224 ပေါ်မှာ ရှာတာဖြစ်လို့ မူရင်းပုံ Size နဲ့ ကိုက်အောင် Scale ပြန်တွက်ခြင်း
+    # (xmin, ymin, xmax, ymax)
+    box = yolo_res["box"]
+    xmin = (box[0] / 224) * orig_w
+    ymin = (box[1] / 224) * orig_h
+    xmax = (box[2] / 224) * orig_w
+    ymax = (box[3] / 224) * orig_h
+
+    # Bounding Box ဆွဲခြင်း (အနီရောင်၊ အနားသတ်အထူ ၅)
+    draw.rectangle([xmin, ymin, xmax, ymax], outline="#FF0000", width=8)
+
+    # Label စာသားထည့်ခြင်း
+    label_text = f"{yolo_res['label']} {yolo_res['confidence'] * 100:.1f}%"
+
+    # စာသားနောက်ခံ Box ငယ်လေးဆွဲခြင်း
+    draw.rectangle([xmin, ymin - 35, xmin + 250, ymin], fill="#FF0000")
+    draw.text((xmin + 5, ymin - 30), label_text, fill="white")
+
+    return draw_img
+
 def run_unet_segmentation(img_array: np.ndarray):
     """ U-Net: Pixel-level calculation of wound area (Mock)"""
     time.sleep(0.6)
@@ -109,13 +137,20 @@ with col2:
 
         st.success("Detection Complete Successfully🚀")
 
-        st.markdown("### 🎯 1. Target Localization (YOLOv11)")
-        st.metric(label="Detected Condition", value=yolo_res["label"])
-        st.write(f"**Confidence Score:** {yolo_res['confidence'] * 100:.2f}%")
+        annotated_image = draw_detections(image, yolo_res)
+        st.image(annotated_image, caption="AI Analysis Visualization (Target Localization)", use_container_width=True)
 
-        st.markdown("### 📐 2. Boundary & Area Extraction (U-Net)")
-        st.metric(label="Estimated Wound Surface Area", value=f"{unet_res['estimated_surface_area_cm2']} cm²")
-        st.caption(f"Calculated from {unet_res['affected_area_px']} pixels at current resolution.")
+        m_col1, m_col2 = st.columns(2)
+
+        with m_col1:
+            st.markdown("### 🎯 1. Target Localization (YOLOv11)")
+            st.metric(label="Detected Condition", value=yolo_res["label"])
+            st.write(f"**Confidence Score:** {yolo_res['confidence'] * 100:.2f}%")
+
+        with m_col2:
+            st.markdown("### 📐 2. Boundary & Area Extraction (U-Net)")
+            st.metric(label="Estimated Wound Surface Area", value=f"{unet_res['estimated_surface_area_cm2']} cm²")
+            st.caption(f"Calculated from {unet_res['affected_area_px']} pixels at current resolution.")
 
         st.write("---")
 
