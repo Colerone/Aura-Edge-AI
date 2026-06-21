@@ -12,7 +12,6 @@ st.set_page_config(
     layout = "wide"
 )
 
-import streamlit as st
 
 # Create 3 columns where the middle one takes the most space
 # st.markdown(
