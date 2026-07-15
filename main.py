@@ -45,7 +45,7 @@ def preprocess_image(image: Image.Image) ->np.ndarray:
     return img_array
 
 def run_yolo_detection(img_array: np.ndarray):
-    """ run yolo detection model to find skin and wound detection"""
+    """ runs yolo detection model to find skin and wound detection"""
     time.sleep(0.5)
     return{"box" : [50,50,150,150], "confidence" : 0.92, "label" : "Surgical Wound"}
 
