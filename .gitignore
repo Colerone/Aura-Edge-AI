@@ -1,6 +1,111 @@
-.idea/
-__pycache__/
-*.pyc
-.env
+
+# =====================================
+# Python Virtual Environment
+# =====================================
 .venv/
+venv/
+ENV/
+
+# =====================================
+# IDE Settings
+# =====================================
+.idea/
+.vscode/
+
+# =====================================
+# Python Cache
+# =====================================
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# =====================================
+# Node.js / React
+# =====================================
+node_modules/
+dist/
+coverage/
+.vite/
+
+# =====================================
+# AI Model Weights
+# =====================================
+*.pt
+*.pth
+*.weights
+*.onnx
+*.engine
+*.tflite
+*.pb
+*.safetensors
+*.bin
+
+# =====================================
+# OpenVINO Models
+# =====================================
+*_openvino_model/
+openvino_model/
+
+# =====================================
+# XML Model Files
+# =====================================
+*.xml
+
+# =====================================
+# All Image Files
+# =====================================
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
+*.bmp
+*.tif
+*.tiff
+*.svg
+*.ico
+*.avif
+*.heic
+
+# =====================================
+# Dataset and Training
+# =====================================
 data/
+dataset/
+datasets/
+runs/
+wandb/
+
+# =====================================
+# Detection Results
+# =====================================
+results/
+results_*/
+external_results/
+external_test/
+outputs/
+predictions/
+*.csv
+
+# =====================================
+# Uploads and Temporary Files
+# =====================================
+uploads/
+temp/
+tmp/
+*.tmp
+*.log
+
+# =====================================
+# Environment Variables
+# =====================================
+.env
+.env.*
+!.env.example
+
+# =====================================
+# OS Files
+# =====================================
+.DS_Store
+Thumbs.db
+desktop.ini

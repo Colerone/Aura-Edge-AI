@@ -1,7 +1,7 @@
 from ultralytics import YOLO
 
 model = YOLO('best.pt')
-image_source = 'test_img4.jpg'
+image_source = 'test_img5.jpg'
 results = model.predict(source=image_source, stream=True, conf=0.25, iou=0.50)
 
 print("The Following are results: ")
