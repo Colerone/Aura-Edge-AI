@@ -28,31 +28,7 @@ coverage/
 .vite/
 
 # =====================================
-# AI Model Weights
-# =====================================
-*.pt
-*.pth
-*.weights
-*.onnx
-*.engine
-*.tflite
-*.pb
-*.safetensors
-*.bin
-
-# =====================================
-# OpenVINO Models
-# =====================================
-*_openvino_model/
-openvino_model/
-
-# =====================================
-# XML Model Files
-# =====================================
-*.xml
-
-# =====================================
-# All Image Files
+# All Images - DO NOT UPLOAD
 # =====================================
 *.jpg
 *.jpeg
@@ -88,7 +64,7 @@ predictions/
 *.csv
 
 # =====================================
-# Uploads and Temporary Files
+# Temporary Files and Uploads
 # =====================================
 uploads/
 temp/

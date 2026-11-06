@@ -1,0 +1,28 @@
+description: Ultralytics YOLO11l model trained on /content/combined_dataset/data.yaml
+author: Ultralytics
+date: '2026-11-02T14:31:08.036235'
+version: 8.4.87
+license: AGPL-3.0 License (https://ultralytics.com/license)
+docs: https://docs.ultralytics.com
+stride: 32
+task: detect
+head: Detect
+batch: 1
+imgsz:
+- 640
+- 640
+names:
+  0: Acne
+  1: Melasma
+  2: Rosacea
+  3: Wrinkle
+  4: Freckles
+args:
+  data: null
+  batch: 1
+  fraction: 1.0
+  quantize: null
+  dynamic: false
+  nms: false
+channels: 3
+end2end: false
