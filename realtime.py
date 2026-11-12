@@ -1,6 +1,7 @@
 
 import os
 import io
+import threading
 from contextlib import asynccontextmanager
 
 from PIL import Image, UnidentifiedImageError
@@ -21,8 +22,17 @@ MODEL_PATH = os.path.join(
     "best_int8_openvino_model"
 )
 
-# Load YOLO INT8 OpenVINO model
-model = YOLO(MODEL_PATH, task="detect")
+MODEL_DEVICE = "intel:gpu"
+
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
+
+# Prevent simultaneous inference on the same YOLO model.
+inference_lock = threading.Lock()
+
+model = YOLO(
+    MODEL_PATH,
+    task="detect"
+)
 
 print("YOLO11 INT8 OpenVINO Model Initialized!")
 
@@ -37,7 +47,6 @@ def warmup_model():
     print("Starting OpenVINO GPU Warm-up...")
     print("======================================")
 
-    # Create dummy image matching inference input
     warmup_image = Image.new(
         "RGB",
         (640, 640),
@@ -46,16 +55,16 @@ def warmup_model():
 
     try:
 
-        # Perform first inference to trigger
-        # OpenVINO loading and GPU compilation
-        model.predict(
-            source=warmup_image,
-            imgsz=640,
-            conf=0.25,
-            iou=0.1,
-            device="intel:gpu",
-            verbose=False
-        )
+        with inference_lock:
+
+            model.predict(
+                source=warmup_image,
+                imgsz=640,
+                conf=0.25,
+                iou=0.1,
+                device=MODEL_DEVICE,
+                verbose=False
+            )
 
         print("======================================")
         print("OpenVINO GPU Warm-up Completed!")
@@ -65,7 +74,7 @@ def warmup_model():
     except Exception as error:
 
         print("OpenVINO Warm-up Failed!")
-        print(error)
+        print(repr(error))
 
         raise
 
@@ -81,7 +90,6 @@ def warmup_model():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 
-    # Warm-up before accepting user requests
     await run_in_threadpool(warmup_model)
 
     yield
@@ -122,7 +130,8 @@ def home():
 
     return {
         "message": "Aura Edge AI Real-Time Backend is running!",
-        "model_status": "ready"
+        "model_status": "ready",
+        "device": MODEL_DEVICE
     }
 
 
@@ -133,9 +142,14 @@ def home():
 @app.post("/realtime/predict")
 def realtime_predict(file: UploadFile = File(...)):
 
+    image = None
+
     try:
 
-        image_bytes = file.file.read()
+        # Read uploaded image with a size limit
+        image_bytes = file.file.read(
+            MAX_IMAGE_BYTES + 1
+        )
 
         if not image_bytes:
 
@@ -144,75 +158,138 @@ def realtime_predict(file: UploadFile = File(...)):
                 detail="Empty image file."
             )
 
-        image = Image.open(
-            io.BytesIO(image_bytes)
-        ).convert("RGB")
+        if len(image_bytes) > MAX_IMAGE_BYTES:
 
-    except (UnidentifiedImageError, OSError, ValueError):
+            raise HTTPException(
+                status_code=413,
+                detail="Image file is too large. Maximum size is 10 MB."
+            )
 
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid image file."
-        )
+        # Decode and convert to RGB
+        try:
 
-    try:
+            with Image.open(
+                io.BytesIO(image_bytes)
+            ) as source_image:
 
-        # INT8 OpenVINO GPU Inference
-        results = model.predict(
-            source=image,
-            imgsz=640,
-            conf=0.25,
-            iou=0.1,
-            device="intel:gpu",
-            verbose=False
-        )
+                source_image.load()
+
+                image = source_image.convert("RGB")
+
+        except (
+            UnidentifiedImageError,
+            OSError,
+            ValueError
+        ):
+
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid image file."
+            )
+
+        # =====================================
+        # YOLO INT8 OPENVINO GPU INFERENCE
+        # =====================================
+
+        with inference_lock:
+
+            results = model.predict(
+                source=image,
+                imgsz=640,
+                conf=0.25,
+                iou=0.1,
+                device=MODEL_DEVICE,
+                verbose=False
+            )
+
+        if not results:
+
+            raise HTTPException(
+                status_code=500,
+                detail="AI model returned no prediction result."
+            )
 
         result = results[0]
 
         detections = []
 
-        for box in result.boxes:
+        if result.boxes is not None:
 
-            class_id = int(box.cls[0])
-            confidence = float(box.conf[0])
+            for box in result.boxes:
 
-            x1, y1, x2, y2 = box.xyxy[0].tolist()
+                class_id = int(box.cls[0])
 
-            detections.append({
+                confidence = float(box.conf[0])
 
-                "class": model.names[class_id],
+                x1, y1, x2, y2 = (
+                    box.xyxy[0].tolist()
+                )
 
-                "confidence": round(
-                    confidence, 4
-                ),
+                detections.append({
 
-                "box": {
-                    "x1": round(x1, 2),
-                    "y1": round(y1, 2),
-                    "x2": round(x2, 2),
-                    "y2": round(y2, 2),
-                }
+                    "class": model.names[class_id],
 
-            })
+                    "confidence": round(
+                        confidence,
+                        4
+                    ),
+
+                    "box": {
+
+                        "x1": round(x1, 2),
+                        "y1": round(y1, 2),
+                        "x2": round(x2, 2),
+                        "y2": round(y2, 2),
+
+                    }
+
+                })
+
+        speed = result.speed or {}
 
         return {
+
             "detections": detections,
 
             "performance": {
+
                 "preprocess_ms": round(
-                    result.speed.get("preprocess", 0), 2
+                    speed.get("preprocess", 0),
+                    2
                 ),
 
                 "inference_ms": round(
-                    result.speed.get("inference", 0), 2
+                    speed.get("inference", 0),
+                    2
                 ),
 
                 "postprocess_ms": round(
-                    result.speed.get("postprocess", 0), 2
+                    speed.get("postprocess", 0),
+                    2
                 ),
+
             }
+
         }
+
+    except HTTPException:
+
+        raise
+
+    except Exception as error:
+
+        print(
+            "Real-Time Prediction Error:",
+            repr(error)
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Real-time AI prediction failed."
+        )
 
     finally:
 
-        image.close()
+        if image is not None:
+
+            image.close()
